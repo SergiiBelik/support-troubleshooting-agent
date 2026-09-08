@@ -361,6 +361,12 @@ These would be natural extensions in a production system, but are outside the sc
 - Add observability and request tracing
 - Add a web or ticketing-system interface
 
+
+## Related projects
+
+- [Incident Analyzer](https://github.com/SergiiBelik/incident-analyzer) —
+  Application that uses OpenAI Responses API and Structured Outputs to transform messy incident evidence into a structured operational analysis.
+
 ## References
 
 - OpenAI API documentation: https://platform.openai.com/docs
