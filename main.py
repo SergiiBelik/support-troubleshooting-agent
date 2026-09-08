@@ -221,7 +221,7 @@ def run_stream_structured(input_data:str, previous_response_id=None) -> tuple[st
     try:
 
         with client.responses.stream(
-            model="gpt-5",
+            model="gpt-5.6-luna",
             instructions=instructions,
             input=input_data,
             previous_response_id=previous_response_id,
