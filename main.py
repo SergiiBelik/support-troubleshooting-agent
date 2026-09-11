@@ -11,10 +11,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-client = OpenAI(
-    max_retries=3,
-    timeout=30
-)
+client = None
+
+
+def get_client():
+    global client
+
+    if client is None:
+        client = OpenAI(
+            max_retries=3,
+            timeout=30
+        )
+
+    return client
 
 class OpenAIServiceError(RuntimeError):
     pass
@@ -267,7 +276,7 @@ def run_stream_structured(input_data:str, previous_response_id=None) -> tuple[st
 
     try:
 
-        with client.responses.stream(
+        with get_client().responses.stream(
             model="gpt-5.6-luna",
             instructions=instructions,
             input=input_data,
@@ -430,29 +439,34 @@ def process_user_request(user_input,previous_response_id=None):
         "The investigation required too many steps. Please start a new request with more specific details."
     )
 
-previous_response_id = None
+def main():
+    previous_response_id = None
 
-while True:
+    while True:
 
-    user_input = input("\nYou: ")
+        user_input = input("\nYou: ")
 
-    if user_input.lower() in ["quit", "exit", "stop", "bye"]:
-        break
+        if user_input.lower() in ["quit", "exit", "stop", "bye"]:
+            break
 
-    if user_input.lower() == "new":
-        previous_response_id = None
-        print("Conversation reset")
-        continue
+        if user_input.lower() == "new":
+            previous_response_id = None
+            print("Conversation reset")
+            continue
 
-    print("\nAssistant: ", end="", flush=True)
+        print("\nAssistant: ", end="", flush=True)
 
-    try:
+        try:
 
-        previous_response_id = process_user_request(user_input, previous_response_id)
+            previous_response_id = process_user_request(user_input, previous_response_id)
 
-    except OpenAIServiceError as e:
-        print(f"\n\n>>hey there, we experienced an error: [{e}]")
+        except OpenAIServiceError as e:
+            print(f"\n\n>>hey there, we experienced an error: [{e}]")
 
-    except ToolOrchestrationError as e:
-        logger.exception("Tool orchestration failed")
-        print(f"\n\n>>The investigation could not be completed: {e}")
+        except ToolOrchestrationError as e:
+            logger.exception("Tool orchestration failed")
+            print(f"\n\n>>The investigation could not be completed: {e}")
+
+
+if __name__ == "__main__":
+    main()
