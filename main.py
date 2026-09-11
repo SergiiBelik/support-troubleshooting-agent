@@ -61,15 +61,50 @@ def search_logs(customer_id, error_code) -> dict[str, str]:
     }
 
 def get_active_incidents(service: str) -> dict[str, str|list[dict[str, str]]]:
-    return {
-        "service": service,
-        "incidents": [
+    incidents_by_service = {
+        "authentication": [
             {
                 "id": "INC-4821",
                 "status": "investigating",
                 "title": "Elevated errors in authentication service"
+            },
+            {
+                "id": "INC-4830",
+                "status": "monitoring",
+                "title": "Intermittent OAuth token refresh failures"
+            }
+        ],
+        "api": [
+            {
+                "id": "INC-4827",
+                "status": "identified",
+                "title": "Increased API latency in ca-central"
+            },
+            {
+                "id": "INC-4832",
+                "status": "investigating",
+                "title": "Elevated 429 responses for high-volume requests"
+            }
+        ],
+        "billing": [
+            {
+                "id": "INC-4829",
+                "status": "monitoring",
+                "title": "Delayed invoice generation"
+            }
+        ],
+        "dashboard": [
+            {
+                "id": "INC-4834",
+                "status": "investigating",
+                "title": "Dashboard metrics loading slowly"
             }
         ]
+    }
+
+    return {
+        "service": service,
+        "incidents": incidents_by_service.get(service.lower(), [])
     }
 
 def get_api_usage(customer_id: str) -> dict[str, int]:
