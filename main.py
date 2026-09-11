@@ -3,6 +3,13 @@ from openai import OpenAI
 from pydantic import BaseModel
 from typing import Literal
 import json
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 client = OpenAI(
     max_retries=3,
@@ -10,6 +17,11 @@ client = OpenAI(
 )
 
 class OpenAIServiceError(RuntimeError):
+    pass
+
+
+class ToolOrchestrationError(RuntimeError):
+    """Raised when the model's tool-call workflow cannot be completed safely."""
     pass
 
 def get_customer_status(customer_id: str) -> dict[str, str]:
@@ -374,13 +386,33 @@ def process_user_request(user_input,previous_response_id=None):
 
         for call in function_calls:
 
-            arguments = json.loads(call.arguments)
+            try:
+                arguments = json.loads(call.arguments)
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.exception(
+                    "Received malformed arguments for tool call %s (%s)",
+                    getattr(call, "call_id", "unknown"),
+                    getattr(call, "name", "unknown")
+                )
+                raise ToolOrchestrationError(
+                    "The assistant returned invalid tool arguments. Please try again."
+                ) from e
 
             print("\n*** Executing tool calls ***")
 
             print(f"\n[Calling function: '{call.name}' with arguments: {arguments}]")
 
-            tool_output = execute_tool(call.name, arguments)
+            try:
+                tool_output = execute_tool(call.name, arguments)
+            except ValueError as e:
+                logger.exception(
+                    "Received an unsupported tool call %s (%s)",
+                    getattr(call, "call_id", "unknown"),
+                    call.name
+                )
+                raise ToolOrchestrationError(
+                    "The assistant requested an unsupported investigation step. Please try again."
+                ) from e
 
             print(f"[Tool result: {tool_output}\n")
             print("\n*** End of tool calls ***")
@@ -393,7 +425,10 @@ def process_user_request(user_input,previous_response_id=None):
 
         response_id, function_calls, parsed = run_stream_structured(input_data=tool_outputs, previous_response_id = response_id)
 
-    raise RuntimeError("Maximum tall-call rounds exceeded")
+    logger.error("Maximum tool-call rounds (%s) exceeded", MAX_TOOL_ROUNDS)
+    raise ToolOrchestrationError(
+        "The investigation required too many steps. Please start a new request with more specific details."
+    )
 
 previous_response_id = None
 
@@ -417,3 +452,7 @@ while True:
 
     except OpenAIServiceError as e:
         print(f"\n\n>>hey there, we experienced an error: [{e}]")
+
+    except ToolOrchestrationError as e:
+        logger.exception("Tool orchestration failed")
+        print(f"\n\n>>The investigation could not be completed: {e}")
